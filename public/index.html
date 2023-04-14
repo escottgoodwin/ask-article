@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/public/assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/public/assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/public/assets/favicon-16x16.png">
+    <link rel="manifest" href="manifest.json" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Allows you to ask questions of new articles, get summaries, search and get questions for you to answer"
+    />
+    <style>
+      body {
+          margin: 0;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+            'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+            sans-serif;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
+
+        h1 {
+          color: #ffde34;
+        }
+
+        .App-logo {
+          height: 5vmin;
+          pointer-events: none;
+        }
+        
+        input[type=text] {
+          width: 58vw;
+          padding: 6px 10px;
+          margin: 8px 0;
+          display: inline-block;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          box-sizing: border-box;
+        }
+        
+        input.title-input {
+          width: 75vw;
+        }
+
+        input.url-input {
+          width: 65vw;
+        }
+
+        li {
+          margin-bottom : 5px;
+        }
+        
+        textarea {
+          width: 75vw;
+          height: 30vh;
+          margin-bottom: 2em;
+        }
+        
+        select {
+          padding: 6px 10px;
+          margin: 8px 0;
+          display: inline-block;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          box-sizing: border-box;
+        }
+
+        h3 {
+          text-align: center;
+        }
+
+        .response {
+          margin-bottom: 15px;
+        }
+
+        .model-label{
+          min-width: 40px;
+        }
+        
+        button {
+          background-color:  #002aff; 
+          border: none;
+          color: white;
+          padding: 5px 16px;
+          border-radius: 5px;
+          text-align: center;
+          margin: 5px;
+          text-decoration: none;
+          display: inline-block;
+          font-size: 16px;
+        }
+        
+        button:hover {
+          background-color: #001999;
+        }
+
+        .small-button {
+          padding: 4px 8px;
+          font-size: 14px;
+          margin: 3px;
+        }
+        
+        .App-header {
+          background-color: #282c34;
+          min-height: 100vh;
+          padding: 10px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: start;
+          font-size: 16px;
+          color: white;
+        }
+        
+        .App-link {
+          color: #ffde34;
+        }
+
+        .form-section {
+          display: none;
+          margin: 10px 0px 20px 0px;
+        }
+
+        .response-section {
+          width: 75vw;
+          border:1px;
+          border-style: solid;
+          border-radius: 10px;
+          border-color: #ffde34;
+          padding: 1em;
+          margin: 1em;
+          display: none;
+        }
+    </style>
+    <script type="module">
+      const worker = new Worker(new URL('worker.js', import.meta.url));
+
+      // inputs
+      
+      const text = document.getElementById("full-page")
+      const answer = document.getElementById("answer-input");
+      const askinput = document.getElementById("ask-input");
+      const titleinput = document.getElementById("title-input");
+
+      // response
+      const title = document.getElementById("title")
+      const artUrl = document.getElementById("art-url")
+      const userQuestion = document.getElementById("question");
+      const time = document.getElementById("time")
+      const progress = document.getElementById("progress");
+      const genQuestion = document.getElementById("question");
+      const ask = document.getElementById("ask");
+      const summary = document.getElementById("summary");
+
+      // forms
+
+      const askform = document.getElementById("ask-form");
+      const searchform = document.getElementById("search-form");
+      const questionform = document.getElementById("question-form");
+
+      // buttons
+
+      const summarizebtn = document.getElementById("summarize-btn");
+      const asktogglebtn = document.getElementById("ask-toggle-btn");
+      const askbtn = document.getElementById("ask-btn");
+      const answerbtn = document.getElementById("answer-btn");
+      const genquestionbtn = document.getElementById("gen-question-btn");
+      const genarticlenbtn = document.getElementById("gen-article-btn");
+      const searchtogglebtn = document.getElementById("search-toggle-btn");
+      const searchbtn = document.getElementById("search-submit-btn");
+      const searchsubbtn = document.getElementById("search-toggle-btn");
+      const searchclose = document.getElementById("search-close-btn");
+      const askclose = document.getElementById("ask-close-btn");
+      const questionclose = document.getElementById("answer-close-btn");
+      const fetchbtn = document.getElementById("fetch-btn");
+      const arttexttogglebtn = document.getElementById("text-close-btn");
+      const sumcardbtn = document.getElementById("sum-card-close-btn");
+      const answercardbtn = document.getElementById("answer-card-close-btn");
+      const genartcardbtnn = document.getElementById("genart-card-close-btn");
+      const searchcardbtn = document.getElementById("search-card-close-btn");
+
+      askform.style.display = "none";
+      searchform.style.display = "none";
+
+      // functions
+
+      const fetchPage = async () => {
+
+        if(!url.value.startsWith('http')){
+          alert('Please enter a url!')
+          return
+        }
+
+        try {
+          const response = await fetch(url.value)
+          const pageText = await response.text()
+          const parser = new DOMParser();
+          const doc3 = parser.parseFromString(pageText, "text/html");
+
+          titleinput.value=doc3.title
+      
+          const boxes = doc3.querySelectorAll("h1, h2, h3, h4, h5, h6, p, td, li, span");
+          const allText = []
+          boxes.forEach(e => {
+            allText.push(e.textContent)
+          })
+
+          const oneText = allText.join(' ')
+          const fullpage = document.getElementById("full-page");
+          fullpage.value = oneText
+
+        } catch(error){
+          alert(error)
+        }
+      }
+
+      // worker queries
+      const sendToWorker = (prompt, task) => {
+        time.innerText='Loading...'
+        const now = Date.now()
+        const model = document.getElementById('model')
+        worker.postMessage([prompt, task, model.value, now]);
+      }
+
+      const askText = () => {
+          const userQuestion = document.getElementById("ask-input").value;
+          if(text.length===0 || userQuestion.length===0 ){
+            alert('Enter text')
+            return
+          }
+          const prompt = `
+                  Create a concise and informative answer (no more than 50 words) for a given question 
+                  based solely on the given context. You must only use information from the given context.
+                  Use an unbiased and journalistic tone. Do not repeat text.
+                  If the documents do not contain the answer to the question, say that ‘answering is not possible given the available information. 
+                  Context: ${text.value}; Question: ${userQuestion}; Answer:’
+                  `
+          sendToWorker(prompt, 'ask_text')
+        }
+
+      const generateQuestion = () => {
+        if(text.length===0){
+          alert('Enter text')
+          return
+        }
+        const prompt =`Given the context please generate a question and provide the answer to that question. Context: ${text.value}; Question: `
+        sendToWorker(prompt, 'question')
+      }
+
+      const answerQuestion = () => {
+        const ans = answer.value
+        if(ans.length===0){
+          alert('Enter text')
+          return
+        }
+        const prompt = `Is the given answer a correct response to the given question based solely on the given context? 
+                  Context: ${text.value}; Question: ${genQuestion}; Answer: ${ans}; Please answer yes or no! Answer:
+                  `
+        sendToWorker(prompt, 'answer_question')
+      }
+
+      const generateArticle = () => {
+        const title = titleinput.value
+
+        if(title.length===0){
+          alert('Enter text')
+          return
+        }
+        const prompt = `Title: ${title} 
+                        Given the above title of an imaginary article, imagine the article of no less than 100 words. Article:
+                       `
+        sendToWorker(prompt, 'generate_article')
+      }
+
+      const searchArticle = () => {
+        const searchTerms = document.getElementById("search-input");
+        const terms = searchTerms.value
+        if(terms.length===0){
+          alert('Enter search terms')
+          return
+        }
+        const searchData = {
+          terms,
+          articles: text.value,
+        }
+        sendToWorker(searchData, 'search_article')
+      }
+
+      const summarize = () => {
+        if(text.value.length===0){
+          alert('Enter text to summarize')
+          return
+        }
+        const prompt = `Summarize this document: ${text.value}`
+        sendToWorker(prompt, 'summary')
+      }
+
+      const setTime = ({then}) => {
+        const now = Date.now()
+        time.innerText=(now-then)/1000
+      }
+
+      const setGenText = ({generation, type}) => {
+        const elem = document.getElementById(type);
+        elem.innerText = generation
+      }
+
+      const showCard = ({type}) => {
+        const card = document.getElementById(type+'-card');
+        card.style.display="block"
+      }
+
+      const setCardTime = (message) => {
+        showCard(message)
+        setTime(message)
+      }
+
+      const setResponse = (message) => {
+        setGenText(message)
+        setCardTime(message)
+      }
+
+      function addResult(result, ul) {
+        var li = document.createElement("li");
+        li.appendChild(document.createTextNode(result));
+        ul.appendChild(li);
+      }
+
+      const setSearchResponse = (message) => {
+        var ul = document.getElementById("search_article");
+        ul.innerHTML = '';
+        message.generation.forEach(e => addResult(e, ul))
+        setCardTime(message)
+      }
+      
+      // toggle
+
+      const toggle = (type) =>{
+        const x = document.getElementById(type);
+        if (x.style.display === "none") {
+          x.style.display = "block";
+        } else {
+          x.style.display = "none";
+        }
+      }
+
+      const toggleShowQuestion = () => toggle("question-card")
+
+      const toggleSearch = () => toggle("search-form")
+
+      const toggleShowAsk = () => toggle("ask-form")
+
+      const toggleArtText = () => toggle("full-page")
+
+      const toggleSumarCard = () => toggle("summary-card")
+
+      const toggleAnswerCard = () => toggle("ask_text-card")
+
+      const toggleGenArtCard = () => toggle("generate_article-card")
+
+      const toggleSearchCard = () => toggle("search_article-card")
+
+      // event listeners
+      summarizebtn.addEventListener("click", summarize, false);
+
+      asktogglebtn.addEventListener("click", toggleShowAsk, false);
+
+      askbtn.addEventListener("click", askText, false);
+
+      answerbtn.addEventListener("click", answerQuestion, false);
+
+      genquestionbtn.addEventListener("click", generateQuestion, false);
+
+      genarticlenbtn.addEventListener("click", generateArticle, false);
+
+      searchtogglebtn.addEventListener("click", toggleSearch, false);
+
+      searchbtn.addEventListener("click", searchArticle, false);
+
+      searchsubbtn.addEventListener("click", toggleSearch, false);
+
+      searchclose.addEventListener("click", toggleSearch, false);
+
+      askclose.addEventListener("click", toggleShowAsk, false);
+
+      questionclose.addEventListener("click", toggleShowQuestion, false);
+
+      fetchbtn.addEventListener("click", fetchPage, false);
+
+      arttexttogglebtn.addEventListener("click", toggleArtText, false);
+
+      sumcardbtn.addEventListener("click", toggleSumarCard, false);
+
+      answercardbtn.addEventListener("click", toggleAnswerCard, false);
+
+      genartcardbtnn.addEventListener("click", toggleGenArtCard, false);
+      
+      searchcardbtn.addEventListener("click", toggleSearchCard, false);
+
+      // receives messages from worker
+      worker.addEventListener('message', (e) => {
+        const message = e.data;
+
+        if(message.type==='download'){
+            const prog = message.data.progress.toFixed(1)
+            progress.innerText=prog
+            return
+        } 
+
+        if(message.type==='error'){
+            alert(message.error)
+            return
+        } 
+
+        if(message.type==='search_article'){
+            setSearchResponse(message)
+            return
+        } 
+
+        setResponse(message) 
+      })
+    </script>
+    <title>Ask the Article</title>
+  </head>
+  <body>
+    <div class="App">
+      <header class="App-header">
+        <table cellPadding='10' >
+          <tbody>
+            <tr>
+              <td>
+                <img src='/public/assets/askarticlemoji.png' class="App-logo" alt="logo" />
+              </td>
+              <td>
+                <h1>
+                  Ask the Article
+                </h1>            
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div >
+          <input type="text" id="url" placeholder="Article Url"  class="url-input"/>
+          <button id="fetch-btn">Get Article Text</button>
+        </div>
+        <table cellPadding='10' >
+          <tbody>
+            <tr>
+              <td style="width: 320px;">
+                <label for="model" >Model:</label>
+                <select name="model" id="model"  >
+                  <option value='google/flan-t5-base'>Flan T5 Base (1 GB)</option>
+                  <option value='google/flan-t5-small'>Flan T5 Small (300 MB)</option>
+                </select>
+              </td>
+              <td style="width: 220px;">
+                Model Loaded: <span style="width: 150px;" id=progress>0.00</span>% 
+              </td>
+              <td style="width: 220px;">
+                Request Time (s) <span id="time">0</span>     
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div >
+          <button id="summarize-btn" >Summarize</button>
+          <button id="ask-toggle-btn">Ask</button>
+          <button id="gen-question-btn">Get Question</button>
+          <button id="gen-article-btn">Generate Article</button>
+          <button id="search-toggle-btn">Search</button>
+        </div>
+        <div  >
+        <div id="ask-form" class='form-section'>
+          <input type="text" id="ask-input" name="ask-input"   />
+          <button id="ask-btn" class="small-button">Ask</button>
+          <button id="ask-close-btn" class="small-button">Close</button>
+        </div>
+        <div id="search-form" class='form-section'>
+          <input type="text" id="search-input" placeholder="Search Terms" name="search-input" />
+          <button id="search-submit-btn" class="small-button">Search</button>
+          <button id="search-close-btn" class="small-button">Close</button>
+        </div>
+        </div>
+        <div class="response-section" id="summary-card">
+          <h4>Summary</h4>
+          <div id="summary" class="response">
+        </div> 
+            <button id="sum-card-close-btn" class="small-button">Close</button>
+        </div>
+        <div class="response-section" id="ask_text-card">
+          <h4>Answer</h4>
+          <div id="ask_text" class="response">
+          </div> 
+          <button id="answer-card-close-btn" class="small-button">Close</button>
+        </div>
+        <div class="response-section" id="generate_article-card">
+          <h4>Generated Article</h4>
+          <div id="generate_article" class="response">
+          </div> 
+          <button id="genart-card-close-btn" class="small-button">Close</button>
+        </div>
+        <div class="response-section" id="question-card">
+          <h4>Question</h4>
+          <div id="question"></div>
+          <input type="text" id="answer-input" placeholder="Answer" name="answer-input"  />
+          <button id="answer-btn" class="small-button">Answer</button>
+          <button id="answer-close-btn" class="small-button">Close</button>
+          <div id="answer-response" ></div>
+        </div>
+        <div class="response-section" id="search_article-card">
+          <h4>Search Results</h4>
+          <ul id="search_article" >
+          </ul> 
+          <button id="search-card-close-btn" class="small-button">Close</button>
+        </div>
+        <div>
+          <input type="text" id="title-input" placeholder="Title" name="title-input" class="title-input" />
+        </div>
+        <div>
+          <h3>
+            Article Text
+            <button id="text-close-btn" class="small-button">Close</button>
+          </h3>  
+          <textarea id="full-page"  ></textarea>
+        </div>     
+      </header>
+    </div>
+  </body>
+</html>
